@@ -132,6 +132,7 @@ private:
 	uint8_t _cur_roi_mode = vehicle_roi_s::ROI_NONE;
 
 	uint8_t _last_device_compid = 0;
+	hrt_abstime _last_manager_info_streamed = 0;
 };
 
 } /* namespace gimbal */

@@ -9,6 +9,11 @@ PX4_SIM_MODEL=${PX4_SIM_MODEL:=x500_gimbal}
 
 . ${R}etc/init.d-posix/airframes/4001_gz_x500
 
+# No RC transmitter/joystick in this SITL setup - Crown Eagle flies autonomous-only
+# with RC as an optional takeover path (see ce_px4_bridge/DESIGN.md), not a
+# requirement, so don't let a missing RC receiver block the system health check.
+param set-default COM_RC_IN_MODE 1
+
 # Gimbal settings
 param set-default MNT_MODE_IN 4
 param set-default MNT_MODE_OUT 2

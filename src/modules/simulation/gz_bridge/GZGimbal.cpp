@@ -215,6 +215,7 @@ void GZGimbal::publishDeviceAttitude()
 	gimbal_att.target_system = 0; // Broadcast
 	gimbal_att.target_component = 0; // Broadcast
 	gimbal_att.device_flags = gimbal_device_attitude_status_s::DEVICE_FLAGS_YAW_IN_VEHICLE_FRAME;
+	gimbal_att.gimbal_device_id = _gimbal_device_id;
 	_q_gimbal.copyTo(gimbal_att.q);
 	gimbal_att.angular_velocity_x = _gimbal_rate[0];
 	gimbal_att.angular_velocity_y = _gimbal_rate[1];
@@ -243,8 +244,9 @@ float GZGimbal::computeJointSetpoint(const float att_stp, const float rate_stp, 
 
 	if (PX4_ISFINITE(rate_stp)) {
 		if (math::abs_t(rate_stp) < FLT_EPSILON) {
-			// Handle zero velocity by sending the last target angle
-			return last_stp;
+			// Position commands from the gimbal manager commonly include zero angular rate.
+			// In that case, honor the requested attitude instead of holding the previous joint setpoint.
+			return PX4_ISFINITE(att_stp) ? att_stp : last_stp;
 		}
 
 		const float rate_diff = dt * rate_stp;

@@ -34,6 +34,7 @@
 
 #include "input_mavlink.h"
 #include <uORB/Publication.hpp>
+#include <uORB/topics/gimbal_device_information.h>
 #include <uORB/topics/gimbal_manager_information.h>
 #include <uORB/topics/vehicle_command_ack.h>
 #include <drivers/drv_hrt.h>
@@ -456,6 +457,7 @@ int InputMavlinkGimbalV2::initialize()
 
 void InputMavlinkGimbalV2::_stream_gimbal_manager_status(const ControlData &control_data)
 {
+	const uint8_t gimbal_device_id = control_data.device_compid > 0 ? control_data.device_compid : 1;
 	gimbal_device_attitude_status_s gimbal_device_attitude_status{};
 
 	if (_gimbal_device_attitude_status_sub.updated()) {
@@ -464,7 +466,7 @@ void InputMavlinkGimbalV2::_stream_gimbal_manager_status(const ControlData &cont
 		gimbal_manager_status_s gimbal_manager_status{};
 		gimbal_manager_status.timestamp = hrt_absolute_time();
 		gimbal_manager_status.flags = gimbal_device_attitude_status.device_flags;
-		gimbal_manager_status.gimbal_device_id = control_data.device_compid;
+		gimbal_manager_status.gimbal_device_id = gimbal_device_id;
 		gimbal_manager_status.primary_control_sysid = control_data.sysid_primary_control;
 		gimbal_manager_status.primary_control_compid = control_data.compid_primary_control;
 		gimbal_manager_status.secondary_control_sysid = 0; // TODO: support secondary control
@@ -475,6 +477,7 @@ void InputMavlinkGimbalV2::_stream_gimbal_manager_status(const ControlData &cont
 
 void InputMavlinkGimbalV2::_stream_gimbal_manager_information(const ControlData &control_data)
 {
+	const uint8_t gimbal_device_id = control_data.device_compid > 0 ? control_data.device_compid : 1;
 	gimbal_device_information_s gimbal_device_info;
 
 	if (_gimbal_device_information_sub.update(&gimbal_device_info) && _parameters.mnt_mode_out == MNT_MODE_OUT_MAVLINK_V2) {
@@ -490,7 +493,7 @@ void InputMavlinkGimbalV2::_stream_gimbal_manager_information(const ControlData 
 		gimbal_manager_info.yaw_max = gimbal_device_info.yaw_max;
 		gimbal_manager_info.yaw_min = gimbal_device_info.yaw_min;
 
-		gimbal_manager_info.gimbal_device_id = control_data.device_compid;
+		gimbal_manager_info.gimbal_device_id = gimbal_device_id;
 
 		_gimbal_manager_info_pub.publish(gimbal_manager_info);
 
@@ -513,7 +516,7 @@ void InputMavlinkGimbalV2::_stream_gimbal_manager_information(const ControlData 
 		gimbal_manager_info.yaw_max = _parameters.mnt_range_yaw;
 		gimbal_manager_info.yaw_min = -_parameters.mnt_range_yaw;
 
-		gimbal_manager_info.gimbal_device_id = control_data.device_compid;
+		gimbal_manager_info.gimbal_device_id = gimbal_device_id;
 
 		_gimbal_manager_info_pub.publish(gimbal_manager_info);
 	}
@@ -612,8 +615,11 @@ InputMavlinkGimbalV2::update(unsigned int timeout_ms, ControlData &control_data,
 
 	_stream_gimbal_manager_status(control_data);
 
-	if (_last_device_compid != control_data.device_compid) {
+	const hrt_abstime now = hrt_absolute_time();
+
+	if (_last_device_compid != control_data.device_compid || now - _last_manager_info_streamed > 1000000) {
 		_last_device_compid = control_data.device_compid;
+		_last_manager_info_streamed = now;
 		_stream_gimbal_manager_information(control_data);
 	}
 
